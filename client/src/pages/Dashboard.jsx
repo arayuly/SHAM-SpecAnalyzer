@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { UploadCloud, FileText, Loader2 } from "lucide-react";
+import { UploadCloud, FileText, Loader2 ,ChevronRight} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 
-export default function Dashboard() {
+
+export default function Dashboard({onFileSelect}) {
   const [documents, setDocuments] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const navigate = useNavigate();
@@ -63,81 +64,129 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto p-8">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">
-        AI Анализатор ТЗ
-      </h1>
+   <div className="max-w-6xl mx-auto p-10 font-sans">
+      
+      {/* HEADER SECTION */}
+      <div className="mb-10">
+        <h1 className="text-[28px] font-black text-slate-800 tracking-tight">
+          AI Анализатор ТЗ
+        </h1>
+        <p className="text-slate-400 text-sm font-medium mt-1">
+          Загрузите документ для мгновенной проверки качества и соответствия стандартам.
+        </p>
+      </div>
 
-      {/* Зона загрузки файлов */}
+      {/* ЗОНА ЗАГРУЗКИ ФАЙЛОВ */}
       <div
         {...getRootProps()}
-        className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
+        className={`relative border-2 border-dashed rounded-[32px] p-16 text-center cursor-pointer transition-all duration-300 ${
           isDragActive
-            ? "border-primary bg-blue-50"
-            : "border-gray-300 bg-white hover:bg-gray-50"
+            ? "border-[#10B981] bg-emerald-50/50 scale-[0.99]"
+            : "border-slate-200 bg-white hover:border-emerald-200 hover:bg-slate-50/50"
         }`}
       >
         <input {...getInputProps()} />
+        
         {isUploading ? (
-          <div className="flex flex-col items-center text-primary">
-            <Loader2 className="w-12 h-12 mb-4 animate-spin" />
-            <p className="text-lg font-medium">ИИ анализирует документ...</p>
+          <div className="flex flex-col items-center">
+            <div className="relative">
+              <Loader2 className="w-16 h-16 text-[#10B981] animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-2 h-2 bg-[#10B981] rounded-full animate-pulse" />
+              </div>
+            </div>
+            <p className="text-xl font-bold text-slate-700 mt-6">ИИ анализирует документ...</p>
+            <p className="text-slate-400 text-sm mt-2 font-medium">Это займет около 10-15 секунд</p>
           </div>
         ) : (
-          <div className="flex flex-col items-center text-gray-500">
-            <UploadCloud className="w-12 h-12 mb-4 text-gray-400" />
-            <p className="text-lg">
-              Перетащите файл ТЗ сюда или кликните для выбора
+          <div className="flex flex-col items-center">
+            <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110">
+              <UploadCloud className="w-10 h-10 text-[#10B981]" />
+            </div>
+            <p className="text-xl font-bold text-slate-700">
+              Перетащите файл ТЗ сюда
             </p>
-            <p className="text-sm mt-2">Поддерживаются: PDF, DOCX, TXT</p>
+            <p className="text-slate-400 font-medium mt-2">
+              или <span className="text-[#10B981] underline decoration-2 underline-offset-4">выберите файл</span> на компьютере
+            </p>
+            <div className="flex gap-4 mt-8">
+              {['PDF', 'DOCX', 'TXT'].map(type => (
+                <span key={type} className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black rounded-lg uppercase tracking-wider">
+                  {type}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Таблица истории */}
-      <div className="mt-12">
-        <h2 className="text-xl font-semibold mb-4">История загрузок</h2>
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 text-gray-600">
-              <tr>
-                <th className="p-4">Файл</th>
-                <th className="p-4">Дата загрузки</th>
-                <th className="p-4">Оценка качества</th>
-                <th className="p-4">Действие</th>
+      {/* ТАБЛИЦА ИСТОРИИ */}
+      <div className="mt-16">
+        <div className="flex items-center justify-between mb-6 px-2">
+          <h2 className="text-lg font-bold text-slate-800">История загрузок</h2>
+          <span className="text-[11px] font-black text-slate-300 uppercase tracking-[0.2em]">
+            {documents.length} Документов
+          </span>
+        </div>
+
+        <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50">
+                <th className="p-5 text-[11px] font-black text-slate-400 uppercase tracking-wider">Название файла</th>
+                <th className="p-5 text-[11px] font-black text-slate-400 uppercase tracking-wider">Дата анализа</th>
+                <th className="p-5 text-[11px] font-black text-slate-400 uppercase tracking-wider">Качество</th>
+                <th className="p-5 text-[11px] font-black text-slate-400 uppercase tracking-wider text-right">Действие</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-50">
               {documents.map((doc) => (
-                <tr key={doc.id} className="border-t">
-                  <td className="p-4 flex items-center">
-                    <FileText className="w-5 h-5 mr-3 text-blue-500" />
-                    {doc.filename}
+                <tr key={doc.id} className="group hover:bg-slate-50/80 transition-colors">
+                  <td className="p-5">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mr-4 group-hover:bg-white transition-colors">
+                        <FileText className="w-5 h-5 text-slate-500" />
+                      </div>
+                      <span className="font-bold text-slate-700 text-sm">{doc.filename}</span>
+                    </div>
                   </td>
-                  <td className="p-4">
-                    {new Date(doc.upload_time).toLocaleString()}
+                  <td className="p-5 text-sm text-slate-400 font-medium">
+                    {new Date(doc.upload_time).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </td>
-                  <td className="p-4 font-bold text-primary">
-                    {doc.score ? `${doc.score}/100` : "—"}
+                  <td className="p-5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 w-16 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-[#10B981] rounded-full" 
+                          style={{ width: `${doc.score || 0}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-black text-slate-700">
+                        {doc.score ? `${doc.score}%` : "—"}
+                      </span>
+                    </div>
                   </td>
-                  <td className="p-4">
-                   <button
-                    onClick={() => {
-                     
-                      localStorage.setItem('lastId', doc.id);
-                      
-                      
-                      navigate(`/result/${doc.id}`); 
-                    }}
-                    className="text-[#10B981] font-bold hover:underline transition-all"
-                  >
-                    Смотреть анализ
-                  </button>
+                  <td className="p-5 text-right">
+                    <button
+                      onClick={() => {
+                       onFileSelect(doc.id, doc.filename);
+                        navigate(`/analysis/${doc.id}`); // Изменил на /analysis, чтобы соответствовать кнопке в Sidebar
+                      }}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 text-[13px] font-bold rounded-xl hover:bg-[#0F172A] hover:text-white hover:border-[#0F172A] transition-all shadow-sm"
+                    >
+                      Открыть
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {documents.length === 0 && (
+            <div className="p-20 text-center">
+              <p className="text-slate-400 font-medium">История пуста. Загрузите первый файл!</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
