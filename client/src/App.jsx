@@ -1,12 +1,17 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Sidebar from "./components/Sidebar"; 
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import ResultView from "./pages/ResultView"; 
 import AnalysisPage from "./pages/AnalysisPage";
-import { useState, useEffect } from "react";
-import { FileText } from 'lucide-react';
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+
+import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from './context/ThemeContext';
+import ProtectedRoute from "./components/ProtectedRoute";
+import MainLayout from "./components/MainLayout";
 import FloatingAssistant from "./components/FloatingAssistant";
+
 function App() {
   const [currentFileName, setCurrentFileName] = useState("");
 
@@ -20,62 +25,53 @@ function App() {
     localStorage.setItem('lastFileName', name);
     setCurrentFileName(name);
   };
+
   return (
-   
-
-    <Router>
-      <div className="flex min-h-screen bg-[#F8FAFC]">
+    <AuthProvider>
+      <ThemeProvider>
+        <Router>
         
-        {/* Теперь Sidebar внутри Router, и ошибка исчезнет */}
-        <Sidebar />
+          
+          <Routes>
+            {/* ПУБЛИЧНЫЕ РОУТЫ (без сайдбара и хедера) */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-        <div className="flex-1 flex flex-col h-screen overflow-hidden">
-         <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-8">
-            <div className="flex items-center gap-3">
-              {currentFileName && (
-                <>
-                  <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
-                    <FileText className="w-4 h-4 text-[#10B981]" />
-                  </div>
-                  <span className="text-sm font-bold text-slate-700 truncate max-w-[300px]">
-                    {currentFileName}
-                  </span>
-                </>
-              )}
-            </div>
-            <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest italic">
-              Hackathon Prototype v1.0
-            </div>
-          </header>
+           
+            <Route
+              element={
+                <ProtectedRoute>
+                  {/* MainLayout теперь сам рисует Sidebar и Header */}
+                  <MainLayout currentFileName={currentFileName} />
+                </ProtectedRoute>
+              }
+            >
+              <Route 
+                path="/" 
+                element={<Dashboard onFileSelect={handleFileSelect} />} 
+              />
+              <Route 
+                path="/result/:id"  
+                element={<ResultView onFileSelect={handleFileSelect}/>} 
+              />
+              <Route 
+                path="/analysis/:id" 
+                element={<AnalysisPage onFileSelect={handleFileSelect} />} 
+              />
+              <Route 
+                path="/analysis/latest" 
+                element={<AnalysisPage isLatest={true} onFileSelect={handleFileSelect} />} 
+              />
+            </Route>
 
-          <main className="flex-1 overflow-y-auto">
-            <Routes>
- 
-            <Route 
-              path="/" 
-              element={<Dashboard onFileSelect={handleFileSelect} />} 
-            />
-            <Route 
-              path="/result/:id"  
-              element={<ResultView onFileSelect={handleFileSelect}/>} 
-            />
-            <Route 
-              path="/analysis/:id" 
-              element={<AnalysisPage onFileSelect={handleFileSelect} />} 
-            />
-            <Route 
-              path="/analysis/latest" 
-              element={<AnalysisPage isLatest={true} onFileSelect={handleFileSelect} />} 
-            />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-          </main>
-        </div>
 
-        <FloatingAssistant 
-        />
-
-      </div>
-    </Router>
+          {/* Ассистент всегда поверх всего */}
+          <FloatingAssistant />
+        </Router>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 

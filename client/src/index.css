@@ -1,5 +1,42 @@
 @import "tailwindcss";
 
-body {
-    background-color: #f8fafc;
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    /* Светлая тема (Light Mode) */
+    --background: #F8FAFC;        /* Общий фон страницы */
+    --foreground: #0F172A;        /* Основной текст */
+    --card: #FFFFFF;              /* Фон карточек и сайдбара */
+    --card-border: #E2E8F0;       /* Границы карточек и таблиц (slate-200) */
+    --muted: #64748B;             /* Второстепенный текст (slate-500) */
+    --accent: #10B981;            /* Твой основной зеленый (emerald-500) */
+    --hover: #F1F5F9;             /* Цвет при наведении (slate-100) */
+  }
+
+  .dark {
+    /* Темная тема бро (Dark Mode) */
+    --background: #0B0F19;        /* Твой глубокий синий */
+    --foreground: #F1F5F9;        /* Почти белый текст */
+    --card: rgba(255, 255, 255, 0.03); /* Полупрозрачные карточки поверх пятен */
+    --card-border: rgba(255, 255, 255, 0.08); /* Тонкие границы в темноте */
+    --muted: #94A3B8;             /* Текст потише (slate-400) */
+    --accent: #10B981;            /* Зеленый остается ярким */
+    --hover: rgba(255, 255, 255, 0.05); /* Наведение в темной теме */
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    @apply antialiased transition-colors duration-300;
+  }
+}
+
+/* Опционально: создаем служебные классы для удобства */
+@layer components {
+  .card-adaptive {
+    background-color: var(--card);
+    border: 1px solid var(--card-border);
+    @apply rounded-[24px] backdrop-blur-md transition-all;
+  }
 }

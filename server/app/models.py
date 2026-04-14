@@ -33,7 +33,7 @@ class Document(Base):
     file_format = Column(String)  # Хранение форматов PDF, Word, TXT [cite: 101]
     upload_time = Column(DateTime, default=datetime.datetime.utcnow)
     owner_id = Column(Integer, ForeignKey("users.id"))
-
+    full_text = Column(Text)
     owner = relationship("User", back_populates="documents")
     analysis = relationship("AnalysisResult", back_populates="document", uselist=False)
     chats = relationship("ChatHistory", back_populates="document")

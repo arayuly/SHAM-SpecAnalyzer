@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from pydantic import BaseModel
 from services import ai_engine, parser
 from sqlalchemy.orm import Session
+import io
+import docx
 
 router = APIRouter(prefix="/api/documents", tags=["Documents"])
 
@@ -12,6 +14,9 @@ router = APIRouter(prefix="/api/documents", tags=["Documents"])
 class ChatMessage(BaseModel):
     message: str
 
+
+class GrantCheckRequest(BaseModel):
+    grant_name: str = "Грант Комитета Науки (стандартный)"
 
 @router.post("/upload-and-analyze/")
 async def upload_and_analyze(
@@ -25,11 +30,15 @@ async def upload_and_analyze(
         text = parser.parse_document(content, file.filename)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+
 
     # 3. Сохранение информации о документе в БД
     file_ext = file.filename.split(".")[-1]
-    new_doc = models.Document(filename=file.filename, file_format=file_ext)
-    # Примечание: пока без привязки к owner_id, добавим при реализации авторизации
+    new_doc = models.Document(
+        filename=file.filename, file_format=file_ext, full_text=text
+    )
+  
     db.add(new_doc)
     db.commit()
     db.refresh(new_doc)
@@ -173,45 +182,168 @@ async def chat_about_document(
     return {"reply": bot_reply}
 
 
-# 4. ЭНДПОИНТ: Скачивание улучшенной структуры ТЗ в виде текстового файла
-@router.get("/{document_id}/download")
-def download_improved_tz(document_id: int, db: Session = Depends(database.get_db)):
-    doc = db.query(models.Document).filter(models.Document.id == document_id).first()
+
+
+
+# # 4. ЭНДПОИНТ: Скачивание улучшенной структуры ТЗ в виде текстового файла
+# @router.get("/{document_id}/download")
+# def download_improved_tz(document_id: int, db: Session = Depends(database.get_db)):
+#     doc = db.query(models.Document).filter(models.Document.id == document_id).first()
+#     analysis = (
+#         db.query(models.AnalysisResult)
+#         .filter(models.AnalysisResult.document_id == document_id)
+#         .first()
+#     )
+
+#     if not analysis or not doc:
+#         raise HTTPException(status_code=404, detail="Данные не найдены")
+
+#     # Формируем красивый текст для скачивания
+#     content = f"=== УЛУЧШЕННАЯ СТРУКТУРА ТЗ: {doc.filename} ===\n\n"
+
+#     if (
+#         isinstance(analysis.structure_data, dict)
+#         and "recommended_structure" in analysis.structure_data
+#     ):
+#         for item in analysis.structure_data["recommended_structure"]:
+#             content += f"- {item}\n"
+#     elif isinstance(analysis.structure_data, list):
+#         for item in analysis.structure_data:
+#             content += f"- {item}\n"
+
+#     content += "\n=== КЛЮЧЕВЫЕ РЕКОМЕНДАЦИИ ===\n\n"
+#     if isinstance(analysis.recommendations, list):
+#         for rec in analysis.recommendations:
+#             content += f"* {rec}\n"
+
+#     # Возвращаем файл напрямую в браузер пользователя
+#     return Response(
+#         content=content,
+#         media_type="text/plain",
+#         headers={
+#             "Content-Disposition": f"attachment; filename=improved_{doc.filename}.txt"
+#         },
+#     )
+
+
+
+
+@router.get("/{document_id}/export-docx")
+def export_improved_tz_docx(document_id: int, db: Session = Depends(database.get_db)):
+    doc_record = (
+        db.query(models.Document).filter(models.Document.id == document_id).first()
+    )
     analysis = (
         db.query(models.AnalysisResult)
         .filter(models.AnalysisResult.document_id == document_id)
         .first()
     )
 
-    if not analysis or not doc:
+    if not analysis or not doc_record:
         raise HTTPException(status_code=404, detail="Данные не найдены")
 
-    # Формируем красивый текст для скачивания
-    content = f"=== УЛУЧШЕННАЯ СТРУКТУРА ТЗ: {doc.filename} ===\n\n"
+    # 1. Создаем новый Word-документ
+    document = docx.Document()
 
-    if (
-        isinstance(analysis.structure_data, dict)
-        and "recommended_structure" in analysis.structure_data
-    ):
-        for item in analysis.structure_data["recommended_structure"]:
-            content += f"- {item}\n"
-    elif isinstance(analysis.structure_data, list):
-        for item in analysis.structure_data:
-            content += f"- {item}\n"
+    # 2. Добавляем красивый заголовок
+    document.add_heading("Улучшенное Техническое Задание", 0)
+    document.add_paragraph(
+        f"Сгенерировано AI-ассистентом SHAM на основе файла: {doc_record.filename}\n"
+    )
 
-    content += "\n=== КЛЮЧЕВЫЕ РЕКОМЕНДАЦИИ ===\n\n"
+    # 3. Секция: Рекомендуемая структура
+    document.add_heading("1. Рекомендуемая структура ТЗ", level=1)
+
+    struct_data = analysis.structure_data
+    if isinstance(struct_data, dict) and "recommended_structure" in struct_data:
+        for item in struct_data["recommended_structure"]:
+            document.add_paragraph(item, style="List Bullet")
+    elif isinstance(struct_data, list):
+        for item in struct_data:
+            document.add_paragraph(item, style="List Bullet")
+    else:
+        document.add_paragraph("Структура не сгенерирована.")
+
+    # 4. Секция: Рекомендации по доработке
+    document.add_heading("2. Рекомендации по доработке", level=1)
+
     if isinstance(analysis.recommendations, list):
         for rec in analysis.recommendations:
-            content += f"* {rec}\n"
+            document.add_paragraph(rec, style="List Bullet")
+    else:
+        document.add_paragraph("Рекомендации отсутствуют.")
 
-    # Возвращаем файл напрямую в браузер пользователя
+    # 5. Сохраняем документ в оперативную память (BytesIO)
+    buffer = io.BytesIO()
+    document.save(buffer)
+    buffer.seek(0)  # Возвращаем курсор в начало файла
+
+    # 6. Отправляем файл пользователю
+    # Указываем правильный MIME-тип для .docx
+    headers = {
+        "Content-Disposition": f"attachment; filename=improved_tz_{document_id}.docx"
+    }
+
     return Response(
-        content=content,
-        media_type="text/plain",
-        headers={
-            "Content-Disposition": f"attachment; filename=improved_{doc.filename}.txt"
-        },
+        content=buffer.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers=headers,
     )
+
+
+
+@router.post("/{document_id}/check-grant")
+async def check_grant_compliance_endpoint(
+    document_id: int, request: GrantCheckRequest, db: Session = Depends(database.get_db)
+):
+    # 1. Ищем документ
+    doc = db.query(models.Document).filter(models.Document.id == document_id).first()
+    if not doc or not doc.full_text:
+        raise HTTPException(status_code=404, detail="Документ или его текст не найден")
+
+    # 2. Отправляем текст в Groq
+    grant_analysis = await ai_engine.check_grant_compliance(
+        doc.full_text, request.grant_name
+    )
+
+    # В рамках хакатона можно не сохранять это в БД, а отдавать прямо на фронт (on-demand генерация)
+    return grant_analysis
+
+
+@router.post("/{document_id}/compare-template")
+async def compare_template_endpoint(
+    document_id: int, db: Session = Depends(database.get_db)
+):
+    # Находим документ и извлекаем его полный текст (который мы добавили на предыдущем шаге)
+    doc = db.query(models.Document).filter(models.Document.id == document_id).first()
+    if not doc or not doc.full_text:
+        raise HTTPException(status_code=404, detail="Документ или его текст не найден")
+
+    # Запускаем сравнение
+    comparison_result = await ai_engine.compare_with_template(doc.full_text)
+
+    return comparison_result
+
+
+
+
+@router.get("/{document_id}/metrics")
+async def get_document_metrics(
+    document_id: int, db: Session = Depends(database.get_db)
+):
+    # Ищем документ и его текст
+    doc = db.query(models.Document).filter(models.Document.id == document_id).first()
+    if not doc or not doc.full_text:
+        raise HTTPException(status_code=404, detail="Документ или его текст не найден")
+
+    # Запускаем извлечение метрик
+    metrics_data = await ai_engine.extract_metrics(doc.full_text)
+
+    return metrics_data
+
+
+
+
 
 
 CRITERIA_WEIGHTS = {
