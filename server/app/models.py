@@ -64,3 +64,26 @@ class ChatHistory(Base):
 
     user = relationship("User", back_populates="chats")
     document = relationship("Document", back_populates="chats")
+
+
+
+class DetailedReport(Base):
+    __tablename__ = "detailed_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), unique=True)
+    
+    original_text = Column(Text)
+    
+    # Список всех найденных проблем
+    # Структура: [
+    #  {"phrase": "быстро", "replacement": "за 2 часа", "category": "Precision", "criterion": "goals_tasks"},
+    #  {"phrase": "инновационный", "replacement": "использование CNN", "category": "Evidence", "criterion": "scientific_novelty"}
+    # ]
+    found_issues = Column(JSON) 
+    
+    criteria_analysis = Column(JSON)
+    
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    document = relationship("Document", backref="detailed_report")

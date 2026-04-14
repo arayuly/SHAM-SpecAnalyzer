@@ -112,3 +112,45 @@ async def chat_with_assistant(
         # Здесь response_format не нужен, так как ждем обычный текст для чата
     )
     return response.choices[0].message.content
+
+
+
+async def analyze_full_document(text: str):
+    # Промпт настроен так, чтобы ИИ сопоставил ошибки с твоими критериями
+    prompt = f"""
+    Проанализируй текст научного ТЗ. Найди все слабые места, размытые формулировки и логические ошибки.
+    
+    Для каждой ошибки верни:
+    1. "phrase": точная фраза из текста.
+    2. "replacement": конкретное SMART-решение.
+    3. "category": тип ошибки (Measurability, Precision, Evidence, Accountability, Time-bound).
+    4. "criterion": строго одно из ID критериев: [goals_tasks, scientific_novelty, practical_applicability, expected_results, socio_economic_effect, feasibility, strategic_relevance].
+
+    Текст ТЗ:
+    {text}
+
+    Верни ответ СТРОГО в формате JSON:
+    {{
+      "found_issues": [
+        {{
+          "phrase": "фраза",
+          "replacement": "замена",
+          "category": "категория",
+          "criterion": "ID_критерия"
+        }}
+      ],
+      "scores": {{ "goals_tasks": 8, "scientific_novelty": 5, ... }},
+      "explanations": {{ "goals_tasks": "почему такой балл", ... }}
+    }}
+    """
+
+    response = await client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "Ты эксперт по научным ТЗ. Твоя задача — находить ошибки и предлагать исправления, привязывая их к критериям оценки."},
+            {"role": "user", "content": prompt}
+        ],
+        response_format={"type": "json_object"}
+    )
+    
+    return json.loads(response.choices[0].message.content)

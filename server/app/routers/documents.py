@@ -51,6 +51,44 @@ async def upload_and_analyze(
     db.add(result)
     db.commit()
 
+
+     # analyze_full_document
+    raw_data = await ai_engine.analyze_full_document(text)
+
+    # 4. Собираем criteria_analysis (для радара и карточек)
+    # Используем твой словарь CRITERIA_WEIGHTS для добавления весов
+    formatted_criteria = []
+    labels = {
+        "goals_tasks": "Цель и задачи",
+        "scientific_novelty": "Научная новизна",
+        "practical_applicability": "Практическая применимость",
+        "expected_results": "Ожидаемые результаты",
+        "socio_economic_effect": "Соц-экономический эффект",
+        "feasibility": "Реализуемость",
+        "strategic_relevance": "Стратегическая релевантность"
+    }
+
+    for key, weight in CRITERIA_WEIGHTS.items():
+        formatted_criteria.append({
+            "id": key,
+            "label": labels.get(key, key),
+            "score": raw_data.get("scores", {}).get(key, 0),
+            "weight": f"{int(weight * 100)}%",
+            "explanation": raw_data.get("explanations", {}).get(key, "Анализ завершен.")
+        })
+
+    
+    new_report = models.DetailedReport(
+        document_id=new_doc.id,
+        original_text=text,
+        found_issues=raw_data.get("found_issues", []), # Тот самый список проблем со словами
+        criteria_analysis=formatted_criteria        # Оценки по разделам
+    )
+    
+    db.add(new_report)
+    db.commit()
+    db.refresh(new_report)
+
     # 6. Возврат итогового отчета на Frontend
     return {
         "message": "Анализ успешно завершен",
@@ -174,3 +212,29 @@ def download_improved_tz(document_id: int, db: Session = Depends(database.get_db
             "Content-Disposition": f"attachment; filename=improved_{doc.filename}.txt"
         },
     )
+
+
+CRITERIA_WEIGHTS = {
+    "goals_tasks": 0.10,          # Цель и задачи (10%)
+    "scientific_novelty": 0.15,   # Научная новизна (15%)
+    "practical_applicability": 0.20, # Практическая применимость (20%)
+    "expected_results": 0.15,     # Ожидаемые результаты (15%)
+    "socio_economic_effect": 0.10, # Соц-экономический эффект (10%)
+    "feasibility": 0.10,          # Реализуемость (10%)
+    "strategic_relevance": 0.20   # Стратегическая релевантность (20%)
+}
+
+@router.get("/{doc_id}/full_analysis")
+async def get_detailed_analysis(doc_id: int, db: Session = Depends(database.get_db)):
+    # Просто тянем готовый отчет из базы
+    report = db.query(models.DetailedReport).filter(models.DetailedReport.document_id == doc_id).first()
+    
+    if not report:
+        raise HTTPException(status_code=404, detail="Анализ для данного документа не найден")
+
+    return {
+        "original_text": report.original_text,
+        "found_issues": report.found_issues,
+        "criteria_analysis": report.criteria_analysis,
+        "final_weighted_score": sum([c['score'] * (int(c['weight'].replace('%',''))/100) for c in report.criteria_analysis])
+    }
