@@ -20,6 +20,7 @@ const Sidebar = () => {
     { id: 'Upload', label: 'Upload or Select', icon: <UploadCloud size={20} />, path: '/' },
     { id: 'Dashboard', label: 'Dashboard', icon: <LayoutGrid size={20} />, path: `/result/${lastId}` },
     { id: 'AI Text Diff', label: 'AI Text Diff', icon: <FileSearch size={20} />, path: `/analysis/${lastId}` },
+    { id: 'Academics', label: 'Academics', icon: <History size={20} />, path: '/academy' },
     { id: 'Settings', label: 'Settings', icon: <Settings size={20} />, path: '/settings' },
   ];
 

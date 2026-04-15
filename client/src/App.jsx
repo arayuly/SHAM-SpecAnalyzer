@@ -5,6 +5,7 @@ import ResultView from "./pages/ResultView";
 import AnalysisPage from "./pages/AnalysisPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import AcademyPage from "./pages/AcademyPage";
 
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from './context/ThemeContext';
@@ -57,6 +58,10 @@ function App() {
               <Route 
                 path="/analysis/:id" 
                 element={<AnalysisPage onFileSelect={handleFileSelect} />} 
+              />
+              <Route 
+                path="/academy" 
+                element={<AcademyPage />} 
               />
               <Route 
                 path="/analysis/latest" 

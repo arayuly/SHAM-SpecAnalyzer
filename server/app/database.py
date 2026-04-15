@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 
-# Укажите ваши данные для подключения к PostgreSQL
+
 SQLALCHEMY_DATABASE_URL = "postgresql://postgres:2005@localhost:5432/sham_spec"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
